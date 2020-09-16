@@ -1,5 +1,6 @@
 (require 'comint)
 (require 'f)
+(require 'dash)
 
 ;;; Customization
 (defgroup oxid nil
@@ -19,9 +20,36 @@
   :group 'oxid
   :type 'string)
 
-(defun oxid-activate-module()
+(defcustom oxid-current-module ""
+  "Current oxid project theme"
+  :group 'oxid
+  :type 'string)
+
+(defun oxid-touch-module (action)
+  (helm :sources '(oxid-modules-helm-source))
+  (let* ((module-action (concat "oe:module:" action))
+         (command (concat "vendor/bin/oe-console " module-action " " oxid-current-module)))
+    (oxid-run-command command "*OXID Command Output*")))
+
+(defun oxid-activate-module ()
   (interactive)
-  (oxid-run-command "vendor/bin/oe-console oe:module:install-configuration source/modules/oxps/order-consent-fields" "*OXID Command Output*"))
+  (oxid-touch-module "activate"))
+
+(defun oxid-deactivate-module ()
+  (interactive)
+  (oxid-touch-module "deactivate"))
+
+;; TODO
+;; execute composer show
+(defun oxid-get-composer-modules ()
+  (interactive)
+  (cd (oxid-project-dir)))
+;; TODO
+(defun oxid-open-shop-log ()
+  (interactive)
+  (cd (oxid-project-dir))
+
+  )
 
 (defun oxid-load-env-vars ()
   "load environment vars from the project root"
@@ -57,6 +85,16 @@
         (candidates . oxid-list-themes)
         (action . (lambda (candidate)
                     (setq oxid-current-theme candidate)))))
+
+(setq oxid-modules-helm-source
+      '((name . "Modules in oxid project")
+       (candidates . oxid-list-modules)
+       (action . (lambda (candidate)
+                   (setq oxid-current-module candidate)))))
+
+(defun oxid-list-modules ()
+  (split-string 
+   (shell-command-to-string (concat (projectile-project-root) "oxideshop/bla.clj " (projectile-project-root)))))
 
 (defun oxid-cmd ()
   "if dockerized returns docker-compose command, otherwise blank"
@@ -100,6 +138,7 @@
 (defvar oxid-command-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "l") #'oxid-activate-module)
+    (define-key map (kbd "L") #'oxid-activate-module)
     (define-key map (kbd "g") #'oxid-run-grunt)
     (define-key map (kbd "d") #'oxid-db-migrate)
     map)
