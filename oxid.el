@@ -28,7 +28,7 @@
 (defun oxid-touch-module (action)
   (helm :sources '(oxid-modules-helm-source))
   (let* ((module-action (concat "oe:module:" action))
-         (command (concat "vendor/bin/oe-console " module-action " " oxid-current-module)))
+         (command (concat (oxid-project-dir) "vendor/bin/oe-console " module-action " " oxid-current-module)))
     (oxid-run-command command "*OXID Command Output*")))
 
 (defun oxid-activate-module ()
@@ -77,7 +77,7 @@
 
 (defun oxid-list-themes ()
   ;; (interactive)
-  (let ((mydir (concat (projectile-project-root) "oxideshop/source/Application/views/") ))
+  (let ((mydir (concat (oxid-project-dir) "source/Application/views/") ))
     (mapcar 'f-filename (f-directories mydir))))
 
 (setq oxid-theme-helm-source
@@ -94,7 +94,8 @@
 
 (defun oxid-list-modules ()
   (split-string 
-   (shell-command-to-string (concat (projectile-project-root) "oxideshop/bla.clj " (projectile-project-root)))))
+   ; TODO: use relative location
+   (shell-command-to-string (concat "~/.emacs.d/private/local/oxid/module-autocomplete.clj " (oxid-project-dir)))))
 
 (defun oxid-cmd ()
   "if dockerized returns docker-compose command, otherwise blank"
@@ -123,22 +124,22 @@
 (defun oxid-project-dir ()
   "if docker - upper lever with docker-compose, otherwise in oxideshop"
   (if oxid-use-docker
-      (projectile-project-root)
-    (concat
-     (projectile-project-root) "oxideshop")))
+      (concat
+       (projectile-project-root) "oxideshop")
+    (projectile-project-root)))
 
 (defun oxid-run-grunt ()
   "run grunt for the theme"
   (interactive)
   (helm :sources '(oxid-theme-helm-source))
-  (cd (concat (projectile-project-root) "/oxideshop/source/Application/views/" oxid-current-theme))
+  (cd (concat (oxid-project-dir) "/source/Application/views/" oxid-current-theme))
   (make-comint-in-buffer "Grunt" "*Grunt*" "grunt")
   (message "Grunt is started."))
 
 (defvar oxid-command-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "l") #'oxid-activate-module)
-    (define-key map (kbd "L") #'oxid-activate-module)
+    (define-key map (kbd "L") #'oxid-deactivate-module)
     (define-key map (kbd "g") #'oxid-run-grunt)
     (define-key map (kbd "d") #'oxid-db-migrate)
     map)
