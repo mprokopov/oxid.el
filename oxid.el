@@ -25,11 +25,17 @@
   :group 'oxid
   :type 'string)
 
+;; (defvar oxid-modules-helm-fallback
+;;   `((name . "fallback")
+;;     (dummy)
+;;     (action . (setq oxid-current-module nil) )))
+
 (defun oxid-touch-module (action)
   (helm :sources '(oxid-modules-helm-source))
   (let* ((module-action (concat "oe:module:" action))
-         (command (concat (oxid-project-dir) "vendor/bin/oe-console " module-action " " oxid-current-module)))
-    (oxid-run-command command "*OXID Command Output*")))
+         (command (concat (oxid-project-dir) "/vendor/bin/oe-console " module-action " " oxid-current-module)))
+    (when oxid-current-module
+      (oxid-run-command command "*OXID Command Output*"))))
 
 (defun oxid-activate-module ()
   (interactive)
@@ -40,16 +46,9 @@
   (oxid-touch-module "deactivate"))
 
 ;; TODO
-;; execute composer show
-(defun oxid-get-composer-modules ()
-  (interactive)
-  (cd (oxid-project-dir)))
-;; TODO
 (defun oxid-open-shop-log ()
   (interactive)
-  (cd (oxid-project-dir))
-
-  )
+  (cd (oxid-project-dir)))
 
 (defun oxid-load-env-vars ()
   "load environment vars from the project root"
@@ -86,16 +85,25 @@
         (action . (lambda (candidate)
                     (setq oxid-current-theme candidate)))))
 
-(setq oxid-modules-helm-source
-      '((name . "Modules in oxid project")
-       (candidates . oxid-list-modules)
-       (action . (lambda (candidate)
-                   (setq oxid-current-module candidate)))))
+(defvar oxid-modules-helm-source
+  (helm-build-sync-source "Modules in OXID project"
+    :candidates #'oxid-list-modules
+    :action (lambda (candidate)
+              (setq oxid-current-module candidate))
+    :volatile t
+    ))
+
+;; (defvar oxid-modules-helm-source
+;;       '((name . "Modules in oxid project")
+;;        (candidates . oxid-list-modules)
+;;        (action . (lambda (candidate)
+;;                    (setq oxid-current-module candidate)))))
 
 (defun oxid-list-modules ()
-  (split-string 
-   ; TODO: use relative location
-   (shell-command-to-string (concat "~/.emacs.d/private/local/oxid/module-autocomplete.clj " (oxid-project-dir)))))
+  (with-helm-current-buffer
+    (split-string 
+                                        ; TODO: use relative location
+     (shell-command-to-string (concat "~/.emacs.d/private/local/oxid/module-autocomplete.clj " (oxid-project-dir))))))
 
 (defun oxid-cmd ()
   "if dockerized returns docker-compose command, otherwise blank"
