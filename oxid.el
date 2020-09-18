@@ -45,10 +45,9 @@
   (interactive)
   (oxid-touch-module "deactivate"))
 
-;; TODO
 (defun oxid-open-shop-log ()
   (interactive)
-  (cd (oxid-project-dir)))
+  (find-file-noselect (concat (oxid-project-dir) "/source/log/oxideshop.log")))
 
 (defun oxid-load-env-vars ()
   "load environment vars from the project root"
@@ -93,12 +92,6 @@
     :volatile t
     ))
 
-;; (defvar oxid-modules-helm-source
-;;       '((name . "Modules in oxid project")
-;;        (candidates . oxid-list-modules)
-;;        (action . (lambda (candidate)
-;;                    (setq oxid-current-module candidate)))))
-
 (defun oxid-list-modules ()
   (with-helm-current-buffer
     (split-string 
@@ -131,7 +124,7 @@
 
 (defun oxid-project-dir ()
   "if docker - upper lever with docker-compose, otherwise in oxideshop"
-  (if oxid-use-docker
+  (if (oxid-has-oxideshop-dir)
       (concat
        (projectile-project-root) "oxideshop")
     (projectile-project-root)))
@@ -143,6 +136,10 @@
   (cd (concat (oxid-project-dir) "/source/Application/views/" oxid-current-theme))
   (make-comint-in-buffer "Grunt" "*Grunt*" "grunt")
   (message "Grunt is started."))
+
+(defun oxid-has-oxideshop-dir ()
+  (let ((path (concat (projectile-project-root) "/oxideshop")))
+    (f-exists? path)))
 
 (defvar oxid-command-map
   (let ((map (make-sparse-keymap)))
