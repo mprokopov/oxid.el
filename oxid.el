@@ -25,29 +25,68 @@
   :group 'oxid
   :type 'string)
 
-;; (defvar oxid-modules-helm-fallback
-;;   `((name . "fallback")
-;;     (dummy)
-;;     (action . (setq oxid-current-module nil) )))
-
 (defun oxid-touch-module (action)
-  (helm :sources '(oxid-modules-helm-source))
-  (let* ((module-action (concat "oe:module:" action))
-         (command (concat (oxid-project-dir) "/vendor/bin/oe-console " module-action " " oxid-current-module)))
+  (helm :sources '(oxid-modules-helm-source)
+        :input oxid-current-module)
+  (let ((module-action (concat "oe:module:" action " " oxid-current-module)))
     (when oxid-current-module
-      (oxid-run-command command "*OXID Command Output*"))))
+      (oxid-oe-console-command module-action))))
+
+(defvar oxid-modules-helm-activate
+  (helm-build-sync-source "Modules in OXID project"
+    :candidates #'oxid-list-modules
+    :action (lambda (candidate)
+              (let ((module-action (concat "oe:module:activate " candidate)))
+                (setq oxid-current-module candidate)
+                (oxid-oe-console-command module-action)))))
+
+(defvar oxid-modules-helm-deactivate
+  (helm-build-sync-source "Modules in OXID project"
+    :candidates #'oxid-list-modules
+    :action (lambda (candidate)
+              (let ((module-action (concat "oe:module:deactivate " candidate)))
+                (setq oxid-current-module candidate)
+                (oxid-oe-console-command module-action)))))
 
 (defun oxid-activate-module ()
   (interactive)
-  (oxid-touch-module "activate"))
+  (helm :sources '(oxid-modules-helm-activate)
+        :input oxid-current-module))
 
 (defun oxid-deactivate-module ()
   (interactive)
-  (oxid-touch-module "deactivate"))
+  (helm :sources '(oxid-modules-helm-deactivate)
+        :input oxid-current-module))
 
 (defun oxid-open-shop-log ()
   (interactive)
-  (find-file-noselect (concat (oxid-project-dir) "/source/log/oxideshop.log")))
+  (switch-to-buffer
+   (find-file-noselect (concat (oxid-project-dir) "/source/log/oxideshop.log"))))
+
+(defun oxid-open-var-folder ()
+  (interactive)
+  (switch-to-buffer
+   (dired (concat (oxid-project-dir) "/var"))))
+
+(defun get-environment-files ()
+  (let ((config-dir (concat (oxid-project-dir) "/var/configuration/environment/")))
+    (mapcar #'(lambda (f) (s-chop-suffix ".1.yaml" (f-filename f)))
+            (f-entries config-dir (lambda (file) (s-matches? ".1.yaml" file))))))
+
+(defun oxid-select-configuration ()
+  (interactive)
+  (helm :sources (helm-build-sync-source "Oxid Environments"
+                   :candidates (get-environment-files)
+                   :action (lambda (config)
+                             (oxid-load-configuration config)))))
+
+(defun oxid-load-configuration (configuration)
+  (interactive)
+  (let* ((env-config-file (concat (oxid-project-dir) "/var/configuration/environment/" configuration ".1.yaml"))
+         (target-config-file (concat (oxid-project-dir) "/var/configuration/environment/1.yaml")))
+    (f-delete target-config-file t)
+    (f-copy env-config-file target-config-file)
+    (oxid-oe-console-command "oe:module:apply-configuration")))
 
 (defun oxid-load-env-vars ()
   "load environment vars from the project root"
@@ -61,8 +100,7 @@
               (setenv (car kv) (cadr kv))))
           (with-temp-buffer
             (insert-file-contents filename)
-            (split-string (buffer-string) "\n" t)))
-  )
+            (split-string (buffer-string) "\n" t))))
 
 (defun oxid-run-command (command buf)
   (set-buffer (get-buffer-create buf))
@@ -72,6 +110,11 @@
     (insert
      (shell-command-to-string cmd)))
   (switch-to-buffer buf))
+
+(defun oxid-oe-console-command (command)
+  (oxid-run-command
+   (concat "vendor/bin/oe-console " command)
+   "*OXID Command Output*"))
 
 (defun oxid-list-themes ()
   ;; (interactive)
@@ -88,13 +131,11 @@
   (helm-build-sync-source "Modules in OXID project"
     :candidates #'oxid-list-modules
     :action (lambda (candidate)
-              (setq oxid-current-module candidate))
-    :volatile t
-    ))
+              (setq oxid-current-module candidate))))
 
 (defun oxid-list-modules ()
   (with-helm-current-buffer
-    (split-string 
+    (split-string
                                         ; TODO: use relative location
      (shell-command-to-string (concat "~/.emacs.d/private/local/oxid/module-autocomplete.clj " (oxid-project-dir))))))
 
@@ -111,7 +152,7 @@
 (defun oxid-apply-modules-configuration ()
   "docker-compose exec php vendor/bin/oe-console oe:module:apply-configuration"
   (interactive)
-  (oxid-run-command "vendor/bin/oe-console oe:module:apply-configuration" "*OXID command output*"))
+  (oxid-oe-console-command "oe:module:apply-configuration"))
 
 (defun oxid-db-migrate()
   "runs database migrations"
@@ -147,6 +188,9 @@
     (define-key map (kbd "L") #'oxid-deactivate-module)
     (define-key map (kbd "g") #'oxid-run-grunt)
     (define-key map (kbd "d") #'oxid-db-migrate)
+    (define-key map (kbd "v") #'oxid-open-var-folder)
+    (define-key map (kbd "o") #'oxid-open-shop-log)
+    (define-key map (kbd "c") #'oxid-select-configuration)
     map)
   "Keymap for Oxid commands")
 
