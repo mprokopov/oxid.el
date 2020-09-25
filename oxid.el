@@ -1,6 +1,7 @@
 (require 'comint)
 (require 'f)
 (require 'dash)
+(require 'helm)
 
 ;;; Customization
 (defgroup oxid nil
@@ -91,7 +92,12 @@
 (defun oxid-load-env-vars ()
   "load environment vars from the project root"
   (interactive)
-  (load-env-vars (concat (projectile-project-root) ".db-env")))
+  (load-env-vars (concat (projectile-project-root) ".env")))
+
+(defun oxid-load-testing-env-vars ()
+  "load environment vars from the project root"
+  (interactive)
+  (load-env-vars (concat (projectile-project-root) ".env.test")))
 
 (defun load-env-vars (filename)
   "sets vars like DB-HOST from file"
@@ -202,6 +208,7 @@
     map)
   "Keymap for OXID mode.")
 
+
 ;;;###autoload
 (define-minor-mode oxid-mode
   "Provides keybindings for working with oxid projects"
@@ -210,5 +217,10 @@
   :global t
   ;; (evil-define-key )
   :keymap oxid-mode-map)
+
+;; (projectile-register-project-type 'oxid '("oxideshop")
+;;                                   :project-file "oxideshop/source/config.inc.php"
+;; 				                          :test "vendor/bin/phpunit"
+;; 				                          :test-suffix "_test")
 
 (provide 'oxid)
