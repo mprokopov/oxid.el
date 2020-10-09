@@ -4,13 +4,6 @@
 (require 'helm)
 (require 'json)
 
-;;; TODO:
-;;; browse project staging
-;;; browse project dev
-;;; browse project repo
-;;; project confluence
-;;; project jira
-
 ;;; Customization
 (defgroup oxid nil
   "Manage and navigate projects easily."
@@ -19,35 +12,29 @@
   :link '(url-link :tag "GitHub" "https://github.com/mprokopov/oxid.el")
   :link '(emacs-commentary-link :tag "Commentary" "oxid"))
 
-(defcustom oxid-use-docker t
-  "OXID is dockerized and uses docker-compose"
-  :group 'oxid
-  :type 'boolean)
+(defvar oxid-use-docker t
+  "OXID is dockerized and uses docker-compose")
 
-(defvar oxid-project-repo-url "https://psgit.oxid-esales.com/psprojects/edeka_eccg/-/merge_requests"
-  "OXID is dockerized and uses docker-compose"
-  :group 'oxid
-  :type 'string)
+(defvar oxid-project-repo-url ""
+  "OXID is dockerized and uses docker-compose")
 
-(defvar oxid-project-jira-url "https://oxid-esales.atlassian.net/secure/RapidBoard.jspa?rapidView=232&projectKey=PECG"
-  "oxid project jira url"
-  :group 'oxid
-  :type 'string)
+(defvar oxid-project-jira-url ""
+  "oxid project jira url")
 
-(defvar oxid-project-confluence-url "https://oxid-esales.atlassian.net/secure/RapidBoard.jspa?rapidView=232&projectKey=PECG"
-  "oxid project confluence url"
-  :group 'oxid
-  :type 'string)
+(defvar oxid-project-confluence-url ""
+  "oxid project confluence url")
+
+(defvar oxid-project-staging-url ""
+  "oxid project staging url")
+
+(defvar oxid-project-local-server-url ""
+  "oxid project local server url")
 
 (defvar oxid-current-theme "risch"
-  "Current oxid project theme"
-  :group 'oxid
-  :type 'string)
+  "Current oxid project theme")
 
 (defvar oxid-current-module ""
-  "Current oxid project theme"
-  :group 'oxid
-  :type 'string)
+  "Current oxid project theme")
 
 ;; (defun oxid-touch-module (action)
 ;;   (helm :sources '(oxid-modules-helm-source)
@@ -76,6 +63,14 @@
   (interactive)
   (browse-url oxid-project-repo-url))
 
+(defun oxid-project-browse-local-server ()
+  (interactive)
+  (browse-url oxid-project-local-server-url))
+
+(defun oxid-project-browse-local-server-admin ()
+  (interactive)
+  (browse-url (concat oxid-project-local-server-url "/admin/")))
+
 (defun oxid-project-browse-jira ()
   (interactive)
   (browse-url oxid-project-jira-url))
@@ -83,6 +78,10 @@
 (defun oxid-project-browse-confluence ()
   (interactive)
   (browse-url oxid-project-confluence-url))
+
+(defun oxid-project-browse-staging ()
+  (interactive)
+  (browse-url oxid-project-staging-url))
 
 (defun oxid-activate-module ()
   (interactive)
@@ -238,13 +237,6 @@
   (interactive)
   (oxid-oe-console-outdated-command "module:fix -a"))
 
-(defvar oxid-browse-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "c") #'oxid-project-browse-confluence)
-    (define-key map (kbd "r") #'oxid-project-browse-repo)
-    (define-key map (kbd "j") #'oxid-project-browse-jira)
-    map))
-
 (defvar oxid-command-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "l") #'oxid-activate-module)
@@ -255,6 +247,12 @@
     (define-key map (kbd "v") #'oxid-open-var-folder)
     (define-key map (kbd "o") #'oxid-open-shop-log)
     (define-key map (kbd "c") #'oxid-select-configuration)
+    (define-key map (kbd "b c") #'oxid-project-browse-confluence)
+    (define-key map (kbd "b r") #'oxid-project-browse-repo)
+    (define-key map (kbd "b j") #'oxid-project-browse-jira)
+    (define-key map (kbd "b l") #'oxid-project-browse-local-server)
+    (define-key map (kbd "b a") #'oxid-project-browse-local-server-admin)
+    (define-key map (kbd "b s") #'oxid-project-browse-staging)
     map)
   "Keymap for Oxid commands")
 
