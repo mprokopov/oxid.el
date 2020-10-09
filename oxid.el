@@ -2,6 +2,14 @@
 (require 'f)
 (require 'dash)
 (require 'helm)
+(require 'json)
+
+;;; TODO:
+;;; browse project staging
+;;; browse project dev
+;;; browse project repo
+;;; project confluence
+;;; project jira
 
 ;;; Customization
 (defgroup oxid nil
@@ -16,22 +24,37 @@
   :group 'oxid
   :type 'boolean)
 
-(defcustom oxid-current-theme "risch"
+(defvar oxid-project-repo-url "https://psgit.oxid-esales.com/psprojects/edeka_eccg/-/merge_requests"
+  "OXID is dockerized and uses docker-compose"
+  :group 'oxid
+  :type 'string)
+
+(defvar oxid-project-jira-url "https://oxid-esales.atlassian.net/secure/RapidBoard.jspa?rapidView=232&projectKey=PECG"
+  "oxid project jira url"
+  :group 'oxid
+  :type 'string)
+
+(defvar oxid-project-confluence-url "https://oxid-esales.atlassian.net/secure/RapidBoard.jspa?rapidView=232&projectKey=PECG"
+  "oxid project confluence url"
+  :group 'oxid
+  :type 'string)
+
+(defvar oxid-current-theme "risch"
   "Current oxid project theme"
   :group 'oxid
   :type 'string)
 
-(defcustom oxid-current-module ""
+(defvar oxid-current-module ""
   "Current oxid project theme"
   :group 'oxid
   :type 'string)
 
-(defun oxid-touch-module (action)
-  (helm :sources '(oxid-modules-helm-source)
-        :input oxid-current-module)
-  (let ((module-action (concat "oe:module:" action " " oxid-current-module)))
-    (when oxid-current-module
-      (oxid-oe-console-command module-action))))
+;; (defun oxid-touch-module (action)
+;;   (helm :sources '(oxid-modules-helm-source)
+;;         :input oxid-current-module)
+;;   (let ((module-action (concat "oe:module:" action " " oxid-current-module)))
+;;     (when oxid-current-module
+;;       (oxid-oe-console-command module-action))))
 
 (defvar oxid-modules-helm-activate
   (helm-build-sync-source "Modules in OXID project"
@@ -48,6 +71,18 @@
               (let ((module-action (concat "oe:module:deactivate " candidate)))
                 (setq oxid-current-module candidate)
                 (oxid-oe-console-command module-action)))))
+
+(defun oxid-project-browse-repo ()
+  (interactive)
+  (browse-url oxid-project-repo-url))
+
+(defun oxid-project-browse-jira ()
+  (interactive)
+  (browse-url oxid-project-jira-url))
+
+(defun oxid-project-browse-confluence ()
+  (interactive)
+  (browse-url oxid-project-confluence-url))
 
 (defun oxid-activate-module ()
   (interactive)
@@ -106,7 +141,8 @@
               (setenv (car kv) (cadr kv))))
           (with-temp-buffer
             (insert-file-contents filename)
-            (split-string (buffer-string) "\n" t))))
+            (split-string (buffer-string) "\n" t)))
+  (message "environment vars has been loaded from %s" filename))
 
 (defun oxid-run-command (command buf)
   (set-buffer (get-buffer-create buf))
@@ -120,6 +156,11 @@
 (defun oxid-oe-console-command (command)
   (oxid-run-command
    (concat "vendor/bin/oe-console " command)
+   "*OXID Command Output*"))
+
+(defun oxid-oe-console-outdated-command (command)
+  (oxid-run-command
+   (concat "vendor/bin/oxid " command)
    "*OXID Command Output*"))
 
 (defun oxid-list-themes ()
@@ -184,15 +225,32 @@
   (make-comint-in-buffer "Grunt" "*Grunt*" "grunt")
   (message "Grunt is started."))
 
+(defun oxid-clear-cache ()
+  "clears oxid cache"
+  (interactive)
+  (oxid-oe-console-outdated-command "cache:clear"))
+
 (defun oxid-has-oxideshop-dir ()
   (let ((path (concat (projectile-project-root) "/oxideshop")))
     (f-exists? path)))
+
+(defun oxid-fix-modules ()
+  (interactive)
+  (oxid-oe-console-outdated-command "module:fix -a"))
+
+(defvar oxid-browse-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "c") #'oxid-project-browse-confluence)
+    (define-key map (kbd "r") #'oxid-project-browse-repo)
+    (define-key map (kbd "j") #'oxid-project-browse-jira)
+    map))
 
 (defvar oxid-command-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "l") #'oxid-activate-module)
     (define-key map (kbd "L") #'oxid-deactivate-module)
     (define-key map (kbd "g") #'oxid-run-grunt)
+    (define-key map (kbd "C") #'oxid-clear-cache)
     (define-key map (kbd "d") #'oxid-db-migrate)
     (define-key map (kbd "v") #'oxid-open-var-folder)
     (define-key map (kbd "o") #'oxid-open-shop-log)
@@ -208,6 +266,44 @@
     map)
   "Keymap for OXID mode.")
 
+(defun oxid-composer ()
+  (interactive)
+  (cd (oxid-project-dir))
+  (switch-to-buffer
+   (set-buffer (get-buffer-create "*OXID Composer*")))
+  (composer-list-mode))
+
+(define-derived-mode composer-list-mode tabulated-list-mode "list-demo-mode"
+  (setq tabulated-list-format [("Name" 49 t)
+                               ("Version" 15 nil)
+                               ("Comment" 0 nil)
+                               ]);; last columnt takes what left
+
+  ;; TEXT output based implementation
+  ;; (setq tabulated-list-entries (seq-map-indexed #'(lambda (f idx)
+  ;;                                          (list idx
+  ;;                                                (vector
+  ;;                                                 (s-trim (substring f 0 49))
+  ;;                                                 (s-trim (substring f 50 60))
+  ;;                                                 (substring f 70))))
+  ;;                                               (butlast (s-lines (shell-command-to-string "/usr/local/bin/composer info")))))
+
+  ;; JSON output based implementation
+  (setq tabulated-list-entries (seq-map-indexed #'(lambda (f idx)
+                                                    (list idx
+                                                          (vector
+                                                           (cdar f)
+                                                           (cdadr f)
+                                                           (or (cdaddr f) ""))))
+                                                (cdar
+                                                 (json-read-from-string
+                                                  (shell-command-to-string "/usr/local/bin/composer info -f json")))))
+
+  (setq tabulated-list-padding 2)
+  (setq tabulated-list-sort-key (cons "Name" nil))
+  (tabulated-list-init-header)
+  (tablist-minor-mode)
+  (tabulated-list-print t))
 
 ;;;###autoload
 (define-minor-mode oxid-mode
