@@ -12,6 +12,5 @@
     (map first)
     (map #(subs (str %) 1))))
 
-
 (doseq [m modules]
  (println m))

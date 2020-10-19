@@ -1,0 +1,40 @@
+* Description
+  This layer adds support for oxid framework
+** Features
+- modules list mode
+- quickly apply configuration (oxid 6.2+ only)
+- reset oxid cache
+- run grunt for the current theme
+- list composer dependencies
+- loads project environment variables from .env file
+- quick open project var folder
+- quick open project oxideshop.log
+
+* Install
+To use this configuration layer, add it to your =~/.spacemacs=. You will need to
+add =oxid= to the existing =dotspacemacs-configuration-layers= list in this
+file.
+
+Dependencies: it relies on [[https://github.com/borkdude/babashka][babashka script executor]].
+Install it with
+
+#+BEGIN_SRC shell
+bash <(curl -s https://raw.githubusercontent.com/borkdude/babashka/master/install)
+#+END_SRC
+
+
+
+* Configuration
+  
+* Keybindings
+** Browse project links 
+| Key binding | Description                                   |
+|-------------+-----------------------------------------------|
+| ~Ctrl-c m   | modules list buffer                           |
+| ~Ctrl-c C   | clear oxid cache                              |
+| ~Ctrl-c c   | switch and apply different oxid configuration |
+| ~Ctrl-c o   | open oxideshop.log                            |
+| ~Ctrl-c v   | open vars folder                              |
+| ~Ctrl-c b j~ | browse Jira                                   |
+| ~Ctrl-c b c~ | browse Confluence                             |
+| ~Ctrl-c b r~ | browse project repository                     |

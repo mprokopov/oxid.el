@@ -3,6 +3,7 @@
 (require 'dash)
 (require 'helm)
 (require 'json)
+(require 'projectile)
 
 ;;; Customization
 (defgroup oxid nil
@@ -30,7 +31,7 @@
 (defvar oxid-project-local-server-url ""
   "oxid project local server url")
 
-(defvar oxid-current-theme "risch"
+(defvar oxid-current-theme ""
   "Current oxid project theme")
 
 (defvar oxid-current-module ""
@@ -47,18 +48,23 @@
   (helm-build-sync-source "Modules in OXID project"
     :candidates #'oxid-list-modules
     :action (lambda (candidate)
-              (let ((module-action (concat "oe:module:activate " candidate)))
-                (setq oxid-current-module candidate)
-                (oxid-oe-console-command module-action)))))
+              (oxid-module-activate candidate))))
 
 (defvar oxid-modules-helm-deactivate
   (helm-build-sync-source "Modules in OXID project"
     :candidates #'oxid-list-modules
     :action (lambda (candidate)
-              (let ((module-action (concat "oe:module:deactivate " candidate)))
-                (setq oxid-current-module candidate)
-                (oxid-oe-console-command module-action)))))
+              (oxid-module-deactivate candidate))))
 
+(defun oxid-module-activate (name)
+  (let ((module-action (concat "oe:module:activate " name)))
+    (oxid-oe-console-command module-action)))
+
+(defun oxid-module-deactivate (name)
+  (let ((module-action (concat "oe:module:deactivate " name)))
+    (oxid-oe-console-command module-action)))
+
+;; ## Browse functions
 (defun oxid-project-browse-repo ()
   (interactive)
   (browse-url oxid-project-repo-url))
@@ -83,12 +89,12 @@
   (interactive)
   (browse-url oxid-project-staging-url))
 
-(defun oxid-activate-module ()
+(defun oxid-helm-activate-module ()
   (interactive)
   (helm :sources '(oxid-modules-helm-activate)
         :input oxid-current-module))
 
-(defun oxid-deactivate-module ()
+(defun oxid-helm-deactivate-module ()
   (interactive)
   (helm :sources '(oxid-modules-helm-deactivate)
         :input oxid-current-module))
@@ -117,6 +123,7 @@
 
 (defun oxid-load-configuration (configuration)
   (interactive)
+  (oxid-load-env-vars)
   (let* ((env-config-file (concat (oxid-project-dir) "/var/configuration/environment/" configuration ".1.yaml"))
          (target-config-file (concat (oxid-project-dir) "/var/configuration/environment/1.yaml")))
     (f-delete target-config-file t)
@@ -152,8 +159,16 @@
      (shell-command-to-string cmd)))
   (switch-to-buffer buf))
 
+
+(defun oxid-run-command-async (command buf)
+  (cd (oxid-project-dir))
+  (let ((cmd (oxid-cmd2 command)))
+    (message "oxid: %s"
+     (shell-command-to-string cmd))))
+
 (defun oxid-oe-console-command (command)
-  (oxid-run-command
+  (oxid-load-env-vars)
+  (oxid-run-command-async
    (concat "vendor/bin/oe-console " command)
    "*OXID Command Output*"))
 
@@ -164,7 +179,7 @@
 
 (defun oxid-list-themes ()
   ;; (interactive)
-  (let ((mydir (concat (oxid-project-dir) "source/Application/views/") ))
+  (let ((mydir (concat (oxid-project-dir) "/source/Application/views/") ))
     (mapcar 'f-filename (f-directories mydir))))
 
 (setq oxid-theme-helm-source
@@ -183,7 +198,7 @@
   (with-helm-current-buffer
     (split-string
                                         ; TODO: use relative location
-     (shell-command-to-string (concat "~/.emacs.d/private/local/oxid/module-autocomplete.clj " (oxid-project-dir))))))
+     (shell-command-to-string (concat "~/.emacs.d/private/oxid/local/oxid/module-autocomplete.clj " (oxid-project-dir))))))
 
 (defun oxid-cmd ()
   "if dockerized returns docker-compose command, otherwise blank"
@@ -227,10 +242,22 @@
 (defun oxid-clear-cache ()
   "clears oxid cache"
   (interactive)
-  (oxid-oe-console-outdated-command "cache:clear"))
+  (if (oxid-has-legacy-command)
+      (oxid-oe-console-outdated-command "cache:clear")
+    (oxid-clear-tmp-folder)))
+
+(defun oxid-clear-tmp-folder ()
+  (f-entries (concat (oxid-project-dir) "/source/tmp")
+             (lambda (f)
+               (f-delete f t)))
+  (message "source/tmp has been cleaned."))
 
 (defun oxid-has-oxideshop-dir ()
   (let ((path (concat (projectile-project-root) "/oxideshop")))
+    (f-exists? path)))
+
+(defun oxid-has-legacy-command ()
+  (let ((path (concat (oxid-project-dir) "/vendor/bin/oxid")))
     (f-exists? path)))
 
 (defun oxid-fix-modules ()
@@ -239,14 +266,15 @@
 
 (defvar oxid-command-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "l") #'oxid-activate-module)
-    (define-key map (kbd "L") #'oxid-deactivate-module)
+    (define-key map (kbd "l") #'oxid-helm-activate-module)
+    (define-key map (kbd "L") #'oxid-helm-deactivate-module)
     (define-key map (kbd "g") #'oxid-run-grunt)
     (define-key map (kbd "C") #'oxid-clear-cache)
     (define-key map (kbd "d") #'oxid-db-migrate)
     (define-key map (kbd "v") #'oxid-open-var-folder)
     (define-key map (kbd "o") #'oxid-open-shop-log)
     (define-key map (kbd "c") #'oxid-select-configuration)
+    (define-key map (kbd "m") #'oxid-modules-list)
     (define-key map (kbd "b c") #'oxid-project-browse-confluence)
     (define-key map (kbd "b r") #'oxid-project-browse-repo)
     (define-key map (kbd "b j") #'oxid-project-browse-jira)
@@ -271,7 +299,49 @@
    (set-buffer (get-buffer-create "*OXID Composer*")))
   (composer-list-mode))
 
-(define-derived-mode composer-list-mode tabulated-list-mode "list-demo-mode"
+(defun oxid-modules-list ()
+  (interactive)
+  (cd (oxid-project-dir))
+  (switch-to-buffer
+   (set-buffer (get-buffer-create "*OXID Modules*")))
+  (oxid-modules-list-mode)
+  (tablist-revert))
+
+(defun indexed-modules-vector (f idx)
+  (list idx (vector
+             (cdr (assoc 'id f))
+             (cdr (assoc 'version f))
+             (if (eq :json-false
+                     (cdr (assoc 'configured f)))
+                 "No" "Yes")
+             (or
+              (cdr (assoc 'en (assoc 'title f))) ""))))
+
+(defun modules-json-list ()
+  (json-read-from-string
+   (shell-command-to-string (concat "~/.emacs.d/private/oxid/local/oxid/ac-oxid.clj " (oxid-project-dir)))))
+
+(define-derived-mode oxid-modules-list-mode tabulated-list-mode "oxid modules list mode"
+  (setq tabulated-list-format [("Name" 49 t)
+                               ("Version" 10 t)
+                               ("Active" 6 t)
+                               ("Title" 0 nil)
+                               ])
+  (setq tabulated-list-padding 2)
+  (setq tabulated-list-entries
+        (seq-map-indexed #'indexed-modules-vector (modules-json-list)))
+  (tabulated-list-init-header)
+  (add-hook 'tabulated-list-revert-hook 'oxid-modules-refresh nil t)
+  (tablist-minor-mode)
+  ;; (tabulated-list-print t)
+  )
+
+(defun oxid-modules-refresh ()
+  (interactive)
+  (setq tabulated-list-entries
+        (seq-map-indexed #'indexed-modules-vector (modules-json-list))))
+
+(define-derived-mode composer-list-mode tabulated-list-mode "composer dependencies list mode"
   (setq tabulated-list-format [("Name" 49 t)
                                ("Version" 15 nil)
                                ("Comment" 0 nil)
@@ -300,8 +370,31 @@
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Name" nil))
   (tabulated-list-init-header)
-  (tablist-minor-mode)
-  (tabulated-list-print t))
+  (tablist-minor-mode))
+
+(defun oxid-activate-marked-modules ()
+  (interactive)
+  (--map (let ((name (aref (cdr it) 0)))
+           (oxid-module-activate name))
+         (tablist-get-marked-items))
+  (tablist-revert))
+
+(defun oxid-deactivate-marked-modules ()
+  (interactive)
+  (--map (let ((name (aref (cdr it) 0)))
+           (oxid-module-deactivate name))
+         (tablist-get-marked-items))
+  (tablist-revert))
+
+;;;###autoload
+(defvar oxid-modules-list-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "A" #'oxid-activate-marked-modules)
+    (define-key map "O" #'oxid-deactivate-marked-modules)
+    (define-key map "r" #'tablist-revert)
+    (define-key map "F" #'oxid-fix-modules)
+    map)
+  "Keymap for `docker-image-mode'.")
 
 ;;;###autoload
 (define-minor-mode oxid-mode
