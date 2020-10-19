@@ -33,6 +33,7 @@ Oxid layer
   
 * Key bindings
   
+** General
 | Key binding  | Description                                   |
 |--------------+-----------------------------------------------|
 | ~Ctrl-c m~   | modules list buffer                           |
@@ -43,3 +44,11 @@ Oxid layer
 | ~Ctrl-c b j~ | browse Jira                                   |
 | ~Ctrl-c b c~ | browse Confluence                             |
 | ~Ctrl-c b r~ | browse project repository                     |
+
+
+** Modules list bindings
+| Key binding | Description       |
+|-------------+-------------------|
+| ~A~         | Activate module   |
+| ~O~         | Deactivate module |
+
