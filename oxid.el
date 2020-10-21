@@ -1,9 +1,7 @@
 (require 'comint)
 (require 'f)
 (require 'dash)
-(require 'helm)
 (require 'json)
-(require 'projectile)
 
 ;;; Customization
 (defgroup oxid nil
@@ -44,17 +42,56 @@
 ;;     (when oxid-current-module
 ;;       (oxid-oe-console-command module-action))))
 
-(defvar oxid-modules-helm-activate
-  (helm-build-sync-source "Modules in OXID project"
-    :candidates #'oxid-list-modules
-    :action (lambda (candidate)
-              (oxid-module-activate candidate))))
 
-(defvar oxid-modules-helm-deactivate
-  (helm-build-sync-source "Modules in OXID project"
-    :candidates #'oxid-list-modules
-    :action (lambda (candidate)
-              (oxid-module-deactivate candidate))))
+;; helm dependent things
+;; (defvar oxid-modules-helm-helm-build-sync-source "Modules in OXID project"
+;;     :candidates #'oxid-list-modules
+;;     :action (lambda (candidate)
+;;               (oxid-module-activate candidate))))
+
+;; (defvar oxid-modules-helm-deactivate
+;;   (helm-build-sync-source "Modules in OXID project"
+;;     :candidates #'oxid-list-modules
+;;     :action (lambda (candidate)
+;;               (oxid-module-deactivate candidate))))
+
+;; (defun oxid-helm-activate-module ()
+;;   (interactive)
+;;   (helm :sources '(oxid-modules-helm-activate)
+;;         :input oxid-current-module))
+
+;; (defun oxid-helm-deactivate-module ()
+;;   (interactive)
+;;   (helm :sources '(oxid-modules-helm-deactivate)
+;;         :input oxid-current-module))
+
+;; (setq oxid-theme-helm-source
+;;       '((name . "Themes in OXID")
+;;         (candidates . oxid-list-themes)
+;;         (action . (lambda (candidate)
+;;                     (setq oxid-current-theme candidate)))))
+
+;; (defvar oxid-modules-helm-source
+;;   (helm-build-sync-source "Modules in OXID project"
+;;                           :candidates #'oxid-list-modules
+;;                           :action (lambda (candidate)
+;;                                     (setq oxid-current-module candidate))))
+
+;; (defun oxid-select-configuration ()
+;;   (interactive)
+;;   (helm :sources (helm-build-sync-source "Oxid Environments"
+;;                                          :candidates (get-environment-files)
+;;                                          :action (lambda (config)
+;;                                                    (oxid-load-configuration config)))))
+
+;; (defun oxid-run-grunt ()
+;;   "run grunt for the theme"
+;;   (interactive)
+;;   (helm :sources '(oxid-theme-helm-source))
+;;   (cd (concat (oxid-project-dir) "/source/Application/views/" oxid-current-theme))
+;;   (make-comint-in-buffer "Grunt" "*Grunt*" "grunt")
+;;   (message "Grunt is started."))
+;; ===
 
 (defun oxid-module-activate (name)
   (let ((module-action (concat "oe:module:activate " name)))
@@ -89,16 +126,6 @@
   (interactive)
   (browse-url oxid-project-staging-url))
 
-(defun oxid-helm-activate-module ()
-  (interactive)
-  (helm :sources '(oxid-modules-helm-activate)
-        :input oxid-current-module))
-
-(defun oxid-helm-deactivate-module ()
-  (interactive)
-  (helm :sources '(oxid-modules-helm-deactivate)
-        :input oxid-current-module))
-
 (defun oxid-open-shop-log ()
   (interactive)
   (switch-to-buffer
@@ -114,16 +141,10 @@
     (mapcar #'(lambda (f) (s-chop-suffix ".1.yaml" (f-filename f)))
             (f-entries config-dir (lambda (file) (s-matches? ".1.yaml" file))))))
 
-(defun oxid-select-configuration ()
-  (interactive)
-  (helm :sources (helm-build-sync-source "Oxid Environments"
-                   :candidates (get-environment-files)
-                   :action (lambda (config)
-                             (oxid-load-configuration config)))))
 
 (defun oxid-load-configuration (configuration)
   (interactive)
-  (oxid-load-env-vars)
+  ;; (oxid-load-env-vars)
   (let* ((env-config-file (concat (oxid-project-dir) "/var/configuration/environment/" configuration ".1.yaml"))
          (target-config-file (concat (oxid-project-dir) "/var/configuration/environment/1.yaml")))
     (f-delete target-config-file t)
@@ -167,7 +188,7 @@
      (shell-command-to-string cmd))))
 
 (defun oxid-oe-console-command (command)
-  (oxid-load-env-vars)
+  ;; (oxid-load-env-vars)
   (oxid-run-command-async
    (concat "vendor/bin/oe-console " command)
    "*OXID Command Output*"))
@@ -181,18 +202,6 @@
   ;; (interactive)
   (let ((mydir (concat (oxid-project-dir) "/source/Application/views/") ))
     (mapcar 'f-filename (f-directories mydir))))
-
-(setq oxid-theme-helm-source
-      '((name . "Themes in OXID")
-        (candidates . oxid-list-themes)
-        (action . (lambda (candidate)
-                    (setq oxid-current-theme candidate)))))
-
-(defvar oxid-modules-helm-source
-  (helm-build-sync-source "Modules in OXID project"
-    :candidates #'oxid-list-modules
-    :action (lambda (candidate)
-              (setq oxid-current-module candidate))))
 
 (defun oxid-list-modules ()
   (with-helm-current-buffer
@@ -219,6 +228,7 @@
   "runs database migrations"
   (interactive)
   (cd (oxid-project-dir))
+  ;; (oxid-load-env-vars)
   (switch-to-buffer
    (set-buffer (get-buffer-create "*OXID Migration Output*")))
   (insert (shell-command-to-string
@@ -231,13 +241,6 @@
        (projectile-project-root) "oxideshop")
     (projectile-project-root)))
 
-(defun oxid-run-grunt ()
-  "run grunt for the theme"
-  (interactive)
-  (helm :sources '(oxid-theme-helm-source))
-  (cd (concat (oxid-project-dir) "/source/Application/views/" oxid-current-theme))
-  (make-comint-in-buffer "Grunt" "*Grunt*" "grunt")
-  (message "Grunt is started."))
 
 (defun oxid-clear-cache ()
   "clears oxid cache"
@@ -247,6 +250,7 @@
     (oxid-clear-tmp-folder)))
 
 (defun oxid-clear-tmp-folder ()
+  "oldschool way to cleanup cache"
   (f-entries (concat (oxid-project-dir) "/source/tmp")
              (lambda (f)
                (f-delete f t)))
@@ -308,6 +312,7 @@
   (tablist-revert))
 
 (defun indexed-modules-vector (f idx)
+  "utility function creates list required by oxid modules list mode"
   (list idx (vector
              (cdr (assoc 'id f))
              (cdr (assoc 'version f))
@@ -318,6 +323,7 @@
               (cdr (assoc 'en (assoc 'title f))) ""))))
 
 (defun modules-json-list ()
+  "reads modules list from the json output and returns elisp structures"
   (json-read-from-string
    (shell-command-to-string (concat "~/.emacs.d/private/oxid/local/oxid/ac-oxid.clj " (oxid-project-dir)))))
 
@@ -325,8 +331,7 @@
   (setq tabulated-list-format [("Name" 49 t)
                                ("Version" 10 t)
                                ("Active" 6 t)
-                               ("Title" 0 nil)
-                               ])
+                               ("Title" 0 nil)])
   (setq tabulated-list-padding 2)
   (setq tabulated-list-entries
         (seq-map-indexed #'indexed-modules-vector (modules-json-list)))
@@ -337,6 +342,7 @@
   )
 
 (defun oxid-modules-refresh ()
+  "refreshes modules list"
   (interactive)
   (setq tabulated-list-entries
         (seq-map-indexed #'indexed-modules-vector (modules-json-list))))
@@ -386,7 +392,6 @@
          (tablist-get-marked-items))
   (tablist-revert))
 
-;;;###autoload
 (defvar oxid-modules-list-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "A" #'oxid-activate-marked-modules)
@@ -394,7 +399,7 @@
     (define-key map "r" #'tablist-revert)
     (define-key map "F" #'oxid-fix-modules)
     map)
-  "Keymap for `docker-image-mode'.")
+  "Keymap for `oxid-modules-list-mode'.")
 
 ;;;###autoload
 (define-minor-mode oxid-mode
