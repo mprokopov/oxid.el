@@ -35,62 +35,68 @@
 (defvar oxid-current-module ""
   "Current oxid project theme")
 
-;; (defun oxid-touch-module (action)
-;;   (helm :sources '(oxid-modules-helm-source)
-;;         :input oxid-current-module)
-;;   (let ((module-action (concat "oe:module:" action " " oxid-current-module)))
-;;     (when oxid-current-module
-;;       (oxid-oe-console-command module-action))))
+(defvar oxid-auto-load-env-vars t
+  "Current oxid project theme")
+
+(defun oxid-touch-module (action)
+  (helm :sources '(oxid-modules-helm-source)
+        :input oxid-current-module)
+  (let ((module-action (concat "oe:module:" action " " oxid-current-module)))
+    (when oxid-current-module
+      (oxid-oe-console-command module-action))))
 
 
 ;; helm dependent things
-;; (defvar oxid-modules-helm-helm-build-sync-source "Modules in OXID project"
-;;     :candidates #'oxid-list-modules
-;;     :action (lambda (candidate)
-;;               (oxid-module-activate candidate))))
+(defvar oxid-modules-helm
+  (helm-build-sync-source "Modules in OXID project"
+    :candidates #'oxid-list-modules
+    :action (lambda (candidate)
+              (oxid-module-activate candidate))))
 
-;; (defvar oxid-modules-helm-deactivate
-;;   (helm-build-sync-source "Modules in OXID project"
-;;     :candidates #'oxid-list-modules
-;;     :action (lambda (candidate)
-;;               (oxid-module-deactivate candidate))))
+(defvar oxid-modules-helm-deactivate
+  (helm-build-sync-source "Modules in OXID project"
+    :candidates #'oxid-list-modules
+    :action (lambda (candidate)
+              (oxid-module-deactivate candidate))))
 
-;; (defun oxid-helm-activate-module ()
-;;   (interactive)
-;;   (helm :sources '(oxid-modules-helm-activate)
-;;         :input oxid-current-module))
+(defun oxid-helm-activate-module ()
+  (interactive)
+  (helm :sources '(oxid-modules-helm-activate)
+        :input oxid-current-module))
 
-;; (defun oxid-helm-deactivate-module ()
-;;   (interactive)
-;;   (helm :sources '(oxid-modules-helm-deactivate)
-;;         :input oxid-current-module))
+(defun oxid-helm-deactivate-module ()
+  (interactive)
+  (helm :sources '(oxid-modules-helm-deactivate)
+        :input oxid-current-module))
 
-;; (setq oxid-theme-helm-source
-;;       '((name . "Themes in OXID")
-;;         (candidates . oxid-list-themes)
-;;         (action . (lambda (candidate)
-;;                     (setq oxid-current-theme candidate)))))
+(setq oxid-theme-helm-source
+      '((name . "Themes in OXID")
+        (candidates . oxid-list-themes)
+        (action . (lambda (candidate)
+                    (setq oxid-current-theme candidate)))))
 
-;; (defvar oxid-modules-helm-source
-;;   (helm-build-sync-source "Modules in OXID project"
-;;                           :candidates #'oxid-list-modules
-;;                           :action (lambda (candidate)
-;;                                     (setq oxid-current-module candidate))))
+(defvar oxid-modules-helm-source
+  (helm-build-sync-source "Modules in OXID project"
+                          :candidates #'oxid-list-modules
+                          :action (lambda (candidate)
+                                    (setq oxid-current-module candidate))))
 
-;; (defun oxid-select-configuration ()
-;;   (interactive)
-;;   (helm :sources (helm-build-sync-source "Oxid Environments"
-;;                                          :candidates (get-environment-files)
-;;                                          :action (lambda (config)
-;;                                                    (oxid-load-configuration config)))))
+(defun oxid-select-configuration ()
+  (interactive)
+  (when oxid-auto-load-env-vars
+    (oxid-load-env-vars))
+  (helm :sources (helm-build-sync-source "Oxid Environments"
+                                         :candidates (get-environment-files)
+                                         :action (lambda (config)
+                                                   (oxid-load-configuration config)))))
 
-;; (defun oxid-run-grunt ()
-;;   "run grunt for the theme"
-;;   (interactive)
-;;   (helm :sources '(oxid-theme-helm-source))
-;;   (cd (concat (oxid-project-dir) "/source/Application/views/" oxid-current-theme))
-;;   (make-comint-in-buffer "Grunt" "*Grunt*" "grunt")
-;;   (message "Grunt is started."))
+(defun oxid-run-grunt ()
+  "run grunt for the theme"
+  (interactive)
+  (helm :sources '(oxid-theme-helm-source))
+  (cd (concat (oxid-project-dir) "/source/Application/views/" oxid-current-theme))
+  (make-comint-in-buffer "Grunt" "*Grunt*" "grunt")
+  (message "Grunt is started."))
 ;; ===
 
 (defun oxid-module-activate (name)
@@ -301,10 +307,13 @@
   (cd (oxid-project-dir))
   (switch-to-buffer
    (set-buffer (get-buffer-create "*OXID Composer*")))
-  (composer-list-mode))
+  (composer-list-mode)
+  (tablist-revert))
 
 (defun oxid-modules-list ()
   (interactive)
+  (when oxid-auto-load-env-vars
+    (oxid-load-env-vars))
   (cd (oxid-project-dir))
   (switch-to-buffer
    (set-buffer (get-buffer-create "*OXID Modules*")))
@@ -380,6 +389,8 @@
 
 (defun oxid-activate-marked-modules ()
   (interactive)
+  (when oxid-auto-load-env-vars
+    (oxid-load-env-vars))
   (--map (let ((name (aref (cdr it) 0)))
            (oxid-module-activate name))
          (tablist-get-marked-items))
@@ -387,6 +398,8 @@
 
 (defun oxid-deactivate-marked-modules ()
   (interactive)
+  (when oxid-auto-load-env-vars
+    (oxid-load-env-vars))
   (--map (let ((name (aref (cdr it) 0)))
            (oxid-module-deactivate name))
          (tablist-get-marked-items))
@@ -410,9 +423,9 @@
   ;; (evil-define-key )
   :keymap oxid-mode-map)
 
-;; (projectile-register-project-type 'oxid '("oxideshop")
-;;                                   :project-file "oxideshop/source/config.inc.php"
-;; 				                          :test "vendor/bin/phpunit"
-;; 				                          :test-suffix "_test")
+(projectile-register-project-type 'oxid '("oxideshop")
+                                  :project-file "oxideshop/source/config.inc.php"
+				                          :test "vendor/bin/phpunit"
+				                          :test-suffix "Test")
 
 (provide 'oxid)
