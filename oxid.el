@@ -428,4 +428,9 @@
 				                          :test "vendor/bin/phpunit"
 				                          :test-suffix "Test")
 
+(projectile-register-project-type 'oxid-module '("composer.json" "metadata.php")
+                                  :project-file "composer.json"
+				                          :test "vendor/bin/phpunit"
+				                          :test-suffix "Test")
+
 (provide 'oxid)
