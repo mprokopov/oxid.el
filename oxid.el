@@ -1,9 +1,14 @@
+;;; oxid.el --- Oxid eCommerce framework support
+
+;;; Commentary:
+
 (require 'comint)
 (require 'f)
 (require 'dash)
 (require 'json)
 
 ;;; Customization
+
 (defgroup oxid nil
   "Manage and navigate projects easily."
   :group 'tools
@@ -12,32 +17,33 @@
   :link '(emacs-commentary-link :tag "Commentary" "oxid"))
 
 (defvar oxid-use-docker t
-  "OXID is dockerized and uses docker-compose")
+  "OXID is dockerized and uses `docker-compose'.")
 
 (defvar oxid-project-repo-url ""
-  "OXID is dockerized and uses docker-compose")
+  "OXID is dockerized and uses `docker-compose'.")
 
 (defvar oxid-project-jira-url ""
-  "oxid project jira url")
+  "Oxid project jira url.")
 
 (defvar oxid-project-confluence-url ""
-  "oxid project confluence url")
+  "Oxid project confluence url.")
 
 (defvar oxid-project-staging-url ""
-  "oxid project staging url")
+  "Oxid project staging url.")
 
 (defvar oxid-project-local-server-url ""
-  "oxid project local server url")
+  "Oxid project local server url.")
 
 (defvar oxid-current-theme ""
-  "Current oxid project theme")
+  "Current oxid project theme.")
 
 (defvar oxid-current-module ""
-  "Current oxid project theme")
+  "Current oxid project theme.")
 
 (defvar oxid-auto-load-env-vars t
-  "Current oxid project theme")
+  "Current oxid project theme.")
 
+;;; Code:
 (defun oxid-touch-module (action)
   (helm :sources '(oxid-modules-helm-source)
         :input oxid-current-module)
@@ -60,11 +66,13 @@
               (oxid-module-deactivate candidate))))
 
 (defun oxid-helm-activate-module ()
+  "lists and activates oxid module"
   (interactive)
   (helm :sources '(oxid-modules-helm-activate)
         :input oxid-current-module))
 
 (defun oxid-helm-deactivate-module ()
+  "lists and deactivates oxid module"
   (interactive)
   (helm :sources '(oxid-modules-helm-deactivate)
         :input oxid-current-module))
@@ -91,7 +99,7 @@
                                                    (oxid-load-configuration config)))))
 
 (defun oxid-run-grunt ()
-  "run grunt for the theme"
+  "Run grunt for the theme."
   (interactive)
   (helm :sources '(oxid-theme-helm-source))
   (cd (concat (oxid-project-dir) "/source/Application/views/" oxid-current-theme))
@@ -434,3 +442,7 @@
 				                          :test-suffix "Test")
 
 (provide 'oxid)
+
+(provide 'oxid)
+
+;;; oxid.el ends here
